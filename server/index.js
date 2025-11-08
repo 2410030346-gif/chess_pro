@@ -1,0 +1,167 @@
+import express from 'express';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import mongoose from 'mongoose';
+import connectDB from './config/database.js';
+import authRoutes from './routes/auth.js';
+import gameRoutes from './routes/games.js';
+import leaderboardRoutes from './routes/leaderboard.js';
+
+// Load environment variables
+dotenv.config();
+
+// Connect to MongoDB
+connectDB();
+
+const app = express();
+const httpServer = createServer(app);
+
+// Configure CORS
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+const io = new Server(httpServer, {
+  cors: {
+    origin: "http://localhost:3000",
+    methods: ["GET", "POST"]
+  }
+});
+
+// API Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/games', gameRoutes);
+app.use('/api/leaderboard', leaderboardRoutes);
+
+// Store rooms and their state
+const rooms = new Map();
+
+function generateRoomId() {
+  return Math.random().toString(36).substring(2, 8).toUpperCase();
+}
+
+io.on('connection', (socket) => {
+  console.log('Client connected:', socket.id);
+
+  // Create a new room
+  socket.on('createRoom', (callback) => {
+    const roomId = generateRoomId();
+    
+    // Initialize room
+    rooms.set(roomId, {
+      players: [socket.id],
+      fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', // Starting position
+      createdAt: Date.now()
+    });
+
+    socket.join(roomId);
+    console.log(`Room created: ${roomId} by ${socket.id}`);
+    
+    callback({ roomId });
+  });
+
+  // Join an existing room
+  socket.on('joinRoom', ({ roomId }, callback) => {
+    const room = rooms.get(roomId);
+
+    if (!room) {
+      callback({ error: 'Room not found' });
+      return;
+    }
+
+    if (room.players.length >= 2) {
+      callback({ error: 'Room is full' });
+      return;
+    }
+
+    // Add player to room
+    room.players.push(socket.id);
+    socket.join(roomId);
+
+    console.log(`${socket.id} joined room ${roomId}`);
+    
+    // Notify both players that the room is ready
+    io.to(roomId).emit('roomFull');
+    
+    callback({ success: true, fen: room.fen });
+  });
+
+  // Handle move
+  socket.on('move', ({ roomId, move }) => {
+    const room = rooms.get(roomId);
+
+    if (!room) {
+      console.error('Room not found:', roomId);
+      return;
+    }
+
+    // Broadcast move to other player in the room
+    socket.to(roomId).emit('move', move);
+    
+    console.log(`Move in room ${roomId}:`, move);
+  });
+
+  // Handle disconnect
+  socket.on('disconnect', () => {
+    console.log('Client disconnected:', socket.id);
+
+    // Find and clean up rooms where this player was
+    rooms.forEach((room, roomId) => {
+      if (room.players.includes(socket.id)) {
+        // Notify other player
+        socket.to(roomId).emit('opponentDisconnected');
+        
+        // Remove room after disconnect
+        rooms.delete(roomId);
+        console.log(`Room ${roomId} deleted after disconnect`);
+      }
+    });
+  });
+});
+
+// Clean up old empty rooms periodically (every 5 minutes)
+setInterval(() => {
+  const now = Date.now();
+  const ROOM_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+
+  rooms.forEach((room, roomId) => {
+    if (now - room.createdAt > ROOM_TIMEOUT) {
+      rooms.delete(roomId);
+      console.log(`Room ${roomId} deleted due to timeout`);
+    }
+  });
+}, 5 * 60 * 1000);
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    rooms: rooms.size,
+    mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Database test endpoint
+app.get('/api/test-db', async (req, res) => {
+  try {
+    const dbState = mongoose.connection.readyState;
+    const states = ['disconnected', 'connected', 'connecting', 'disconnecting'];
+    res.json({
+      database: 'MongoDB',
+      state: states[dbState],
+      dbName: mongoose.connection.name || 'not connected'
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+const PORT = process.env.PORT || 3001;
+
+httpServer.listen(PORT, () => {
+  console.log(`✓ Chess server running on http://localhost:${PORT}`);
+  console.log(`✓ Socket.IO server ready for connections`);
+});

@@ -1,0 +1,9 @@
+{
+  "model_type": "chess_neural_network",
+  "training_games": 1000,
+  "training_positions": 35566,
+  "architecture": "3-layer CNN + policy/value heads",
+  "input_size": "119x8x8",
+  "policy_size": "1858",
+  "trained_date": "2025-11-04T08:29:10.583308"
+}
