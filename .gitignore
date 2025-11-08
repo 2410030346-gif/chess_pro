@@ -61,3 +61,7 @@ coverage/
 
 # Debug
 debug.log
+
+# AI Model files (too large for GitHub)
+client/public/models/*.pth
+client/public/models/*.onnx
