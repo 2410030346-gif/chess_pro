@@ -1,4 +1,5 @@
 import { io, Socket } from 'socket.io-client';
+import { config } from '../config';
 
 export interface RoomInfo {
   roomId: string;
@@ -15,7 +16,7 @@ export class SocketService {
   private socket: Socket | null = null;
   private serverUrl: string;
 
-  constructor(serverUrl = 'http://localhost:3001') {
+  constructor(serverUrl = config.apiUrl) {
     this.serverUrl = serverUrl;
   }
 
