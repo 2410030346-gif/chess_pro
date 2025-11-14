@@ -57,8 +57,10 @@ if (process.env.NODE_ENV === 'production') {
   const possiblePaths = [
     path.resolve(__dirname, '..', 'client', 'dist'),           // Standard: server/../client/dist
     path.resolve(process.cwd(), 'client', 'dist'),             // From cwd
+    path.resolve(process.cwd(), '..', 'client', 'dist'),       // From cwd/../client/dist
     path.resolve(__dirname, '..', '..', 'client', 'dist'),     // Up two levels
-    path.resolve('/opt/render/project', 'client', 'dist'),     // Absolute Render path
+    path.resolve('/opt/render/project', 'src', 'client', 'dist'), // Absolute with /src/
+    path.resolve('/opt/render/project', 'client', 'dist'),     // Absolute without /src/
   ];
   
   let clientDistPath = null;
