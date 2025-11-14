@@ -53,44 +53,50 @@ if (process.env.NODE_ENV === 'production') {
   console.log('🔍 __dirname:', __dirname);
   console.log('🔍 process.cwd():', process.cwd());
   
-  // Get the absolute path to client/dist
-  const clientDistPath = path.resolve(__dirname, '..', 'client', 'dist');
-  console.log('📁 Attempting to serve static files from:', clientDistPath);
+  // Try multiple possible paths for client/dist
+  const possiblePaths = [
+    path.resolve(__dirname, '..', 'client', 'dist'),           // Standard: server/../client/dist
+    path.resolve(process.cwd(), 'client', 'dist'),             // From cwd
+    path.resolve(__dirname, '..', '..', 'client', 'dist'),     // Up two levels
+    path.resolve('/opt/render/project', 'client', 'dist'),     // Absolute Render path
+  ];
   
-  // Check if the directory exists
-  if (fs.existsSync(clientDistPath)) {
-    console.log('✅ client/dist directory exists!');
-    const files = fs.readdirSync(clientDistPath);
-    console.log('📄 Files in dist:', files);
-  } else {
-    console.error('❌ client/dist directory NOT found at:', clientDistPath);
-    
-    // Try alternative paths
-    const alt1 = path.resolve(process.cwd(), 'client', 'dist');
-    const alt2 = path.resolve(__dirname, '..', '..', 'client', 'dist');
-    console.log('🔍 Checking alternative path 1:', alt1, 'exists:', fs.existsSync(alt1));
-    console.log('🔍 Checking alternative path 2:', alt2, 'exists:', fs.existsSync(alt2));
+  let clientDistPath = null;
+  
+  for (const testPath of possiblePaths) {
+    console.log('🔍 Testing path:', testPath);
+    if (fs.existsSync(testPath)) {
+      const indexExists = fs.existsSync(path.join(testPath, 'index.html'));
+      console.log('  � Directory exists:', true, '| index.html exists:', indexExists);
+      if (indexExists) {
+        clientDistPath = testPath;
+        console.log('✅ Found valid client/dist at:', clientDistPath);
+        const files = fs.readdirSync(clientDistPath);
+        console.log('📄 Files in dist:', files.slice(0, 10)); // Show first 10 files
+        break;
+      }
+    } else {
+      console.log('  ❌ Path does not exist');
+    }
   }
   
-  // Serve static files from the client/dist directory
-  app.use(express.static(clientDistPath));
+  if (!clientDistPath) {
+    console.error('❌ Could not find client/dist in any expected location!');
+    console.error('Tried paths:', possiblePaths);
+  } else {
+    // Serve static files from the client/dist directory
+    app.use(express.static(clientDistPath));
 
-  // Handle React routing, return all requests to React app
-  app.get('*', (req, res) => {
-    // Don't serve index.html for API routes
-    if (req.path.startsWith('/api/')) {
-      return res.status(404).json({ message: 'API route not found' });
-    }
-    const indexPath = path.join(clientDistPath, 'index.html');
-    console.log('📄 Attempting to send index.html from:', indexPath);
-    
-    if (fs.existsSync(indexPath)) {
+    // Handle React routing, return all requests to React app
+    app.get('*', (req, res) => {
+      // Don't serve index.html for API routes
+      if (req.path.startsWith('/api/')) {
+        return res.status(404).json({ message: 'API route not found' });
+      }
+      const indexPath = path.join(clientDistPath, 'index.html');
       res.sendFile(indexPath);
-    } else {
-      console.error('❌ index.html NOT found at:', indexPath);
-      res.status(500).send('Frontend files not found. Check deployment logs.');
-    }
-  });
+    });
+  }
 }
 
 // Store rooms and their state
