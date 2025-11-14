@@ -47,8 +47,12 @@ app.use('/api/leaderboard', leaderboardRoutes);
 
 // Serve static files from React app in production
 if (process.env.NODE_ENV === 'production') {
+  // Get the absolute path to client/dist
+  const clientDistPath = path.resolve(__dirname, '..', 'client', 'dist');
+  console.log('📁 Serving static files from:', clientDistPath);
+  
   // Serve static files from the client/dist directory
-  app.use(express.static(path.join(__dirname, '../client/dist')));
+  app.use(express.static(clientDistPath));
 
   // Handle React routing, return all requests to React app
   app.get('*', (req, res) => {
@@ -56,7 +60,9 @@ if (process.env.NODE_ENV === 'production') {
     if (req.path.startsWith('/api/')) {
       return res.status(404).json({ message: 'API route not found' });
     }
-    res.sendFile(path.join(__dirname, '../client/dist/index.html'));
+    const indexPath = path.join(clientDistPath, 'index.html');
+    console.log('📄 Sending index.html from:', indexPath);
+    res.sendFile(indexPath);
   });
 }
 
