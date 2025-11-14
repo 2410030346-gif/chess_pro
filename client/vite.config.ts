@@ -5,6 +5,10 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   base: '/', // Use root path for Render deployment
+  build: {
+    outDir: 'dist', // Explicitly set output directory
+    emptyOutDir: true, // Clean output directory before build
+  },
   server: {
     port: 3000,
   },

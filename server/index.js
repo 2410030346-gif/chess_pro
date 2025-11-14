@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 import connectDB from './config/database.js';
 import authRoutes from './routes/auth.js';
 import gameRoutes from './routes/games.js';
@@ -47,9 +48,29 @@ app.use('/api/leaderboard', leaderboardRoutes);
 
 // Serve static files from React app in production
 if (process.env.NODE_ENV === 'production') {
+  // Debug: Log current directory info
+  console.log('🔍 __filename:', __filename);
+  console.log('🔍 __dirname:', __dirname);
+  console.log('🔍 process.cwd():', process.cwd());
+  
   // Get the absolute path to client/dist
   const clientDistPath = path.resolve(__dirname, '..', 'client', 'dist');
-  console.log('📁 Serving static files from:', clientDistPath);
+  console.log('📁 Attempting to serve static files from:', clientDistPath);
+  
+  // Check if the directory exists
+  if (fs.existsSync(clientDistPath)) {
+    console.log('✅ client/dist directory exists!');
+    const files = fs.readdirSync(clientDistPath);
+    console.log('📄 Files in dist:', files);
+  } else {
+    console.error('❌ client/dist directory NOT found at:', clientDistPath);
+    
+    // Try alternative paths
+    const alt1 = path.resolve(process.cwd(), 'client', 'dist');
+    const alt2 = path.resolve(__dirname, '..', '..', 'client', 'dist');
+    console.log('🔍 Checking alternative path 1:', alt1, 'exists:', fs.existsSync(alt1));
+    console.log('🔍 Checking alternative path 2:', alt2, 'exists:', fs.existsSync(alt2));
+  }
   
   // Serve static files from the client/dist directory
   app.use(express.static(clientDistPath));
@@ -61,8 +82,14 @@ if (process.env.NODE_ENV === 'production') {
       return res.status(404).json({ message: 'API route not found' });
     }
     const indexPath = path.join(clientDistPath, 'index.html');
-    console.log('📄 Sending index.html from:', indexPath);
-    res.sendFile(indexPath);
+    console.log('📄 Attempting to send index.html from:', indexPath);
+    
+    if (fs.existsSync(indexPath)) {
+      res.sendFile(indexPath);
+    } else {
+      console.error('❌ index.html NOT found at:', indexPath);
+      res.status(500).send('Frontend files not found. Check deployment logs.');
+    }
   });
 }
 

@@ -1,24 +1,34 @@
 #!/bin/bash
 # Build script for Render deployment
 
-echo "📦 Installing server dependencies..."
+echo "� Current working directory: $(pwd)"
+echo "📂 Listing project structure..."
+ls -la
+
+echo "�📦 Installing server dependencies..."
 cd server
 npm install
+cd ..
 
 echo "📦 Installing client dependencies..."
-cd ../client
+cd client
 npm install
 
 echo "🏗️ Building React frontend..."
 npm run build
 
 echo "✅ Build complete!"
-echo "📁 Checking build output..."
+echo "📁 Verifying build output..."
 ls -la dist/
-echo "📂 Current directory: $(pwd)"
-echo "📂 Project root files:"
+
+echo "📂 Returning to project root..."
 cd ..
+
+echo "📂 Final project structure:"
+pwd
 ls -la
-echo "📂 Client dist files:"
-ls -la client/dist/ || echo "❌ client/dist not found!"
-echo "✅ Server ready in server/"
+
+echo "📂 Verifying client/dist exists:"
+ls -la client/dist/
+
+echo "✅ All builds complete!"
